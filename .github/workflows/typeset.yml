@@ -1,0 +1,48 @@
+name: Typeset
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+jobs:
+  typeset:
+    name: Typeset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Compile (Latex Action)
+        id: compile_latex_action
+        uses: xu-cheng/latex-action@v2
+        with:
+          root_file: 'main.tex'
+          working_directory: 'src'
+      - name: Upload PDF as an artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: main.pdf
+          path: src/main.pdf
+      - name: Output log
+        run: cat src/main.log
+        if: ${{ failure() }}
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.run_id }}
+          release_name: Release ${{ github.run_id }}
+          body: |
+            * Reference: ${{ github.ref }}
+            * Workflow: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            * Commit: ${{ github.sha }}
+      - name: Upload PDF to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: src/main.pdf
+          asset_name: main.pdf
+          asset_content_type: application/pdf
